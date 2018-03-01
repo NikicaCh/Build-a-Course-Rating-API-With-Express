@@ -1,0 +1,47 @@
+extends layout
+
+block content
+  .main.container
+    .row
+      .col-md-6.col-md-offset-3
+        h1.display-4.text-muted New Course
+        // new course form
+        form(method='POST' action='/api/course')
+          div.form-group
+            label(for='title').text-muted Title:
+            input#name.form-control(type='text', placeholder='Title' name='title')
+          div.form-group
+            label(for='description').text-muted Description:
+            textarea#name.form-control(name="description", cols="50", rows="10")
+          div.form-group
+            label(for='estimatedTime').text-muted Estimated Time:
+            input#name.form-control(type='text', name='estimatedTime', placeholder="estimated time")
+          div.form-group
+            label(for='materialsNeeded').text-muted Materials Needed:
+            input#name.form-control(type='text' name='materialsNeeded', placeholder="materials needed")
+          div.step
+            button.btn.btn-primary.mr-2.addStep(type='button', value='Add Step') Add Step
+            button.btn.btn-primary.removeStep(type='button', value='Remove Step') Remove Step
+          script.
+            let step = $('.step');
+            $('.addStep').click(() => {
+                let newStep = `<div class="container", name='steps'>
+                <div class="form-group">
+                  <label for="stepTitle" class="text-muted">Step Title:
+                  <input id="name" type="text" name="stepTitle"  class="form-control"/>
+                  </label>
+                </div>
+                <div class="form-group">
+                  <label for="stepDescription" class="text-muted">Description:
+                  <textarea id="name" name="stepDescription" cols="40" rows="5" class="form-control"></textarea>
+                  </label>
+                </div>
+                </div>`;
+                step.append(newStep);
+            });
+            $('.removeStep').click(() => {
+              if(step.children().length > 2) {
+                  step.children().last().remove(); 
+              }                
+            })
+          button.btn.btn-primary.mt-5(type='submit') Create Course
