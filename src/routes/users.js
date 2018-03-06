@@ -10,19 +10,16 @@ router.get('/users',mid.requiresLogin, (req, res, next) => {
     if(error) {
       next(error);
     } else {
-      res.render('user', {user: user});
+      res.json(user);
     }
   })  
 });
 
-router.get('/register', mid.loggedOut, (req, res) => {
-  res.render('register');
-});
 
-router.post('/register', (req, res, next) => {
+router.post('/users', (req, res, next) => {
   if(
-    req.body.name && 
-    req.body.email && 
+    req.body.fullName && 
+    req.body.emailAddress && 
     req.body.password &&
     req.body.confirmPassword
   ){
@@ -31,64 +28,42 @@ router.post('/register', (req, res, next) => {
       err.status = 400;
       return next(err);
     }
-
-    // create object with form input
-    let userData = {
-      fullName: req.body.name,
-      emailAddress: req.body.email,
-      password: req.body.password
-    };
-
-    // use schema's `create` method to insert document into Mongo
-    User.create(userData, function (error, user) {
-      if (error) {
-        return next(error);
+    User.find({emailAddress: req.body.emailAddress})
+    .exec((err, users) => {
+      if(err) {
+        next(err);
       } else {
-        req.session.UserId = user._id;
-        return res.redirect('/');
+        if(!users.length) {
+          User.create(req.body, function(err) {
+            if (err) {
+              return next(err);
+            } else {
+              User.authenticate(req.body.emailAddress, req.body.password, (error, user) => {
+                if( error || !user) {
+                  let err = new Error('Wrong email or password');
+                  err.status = 401;
+                  return next(err);
+                } else {
+                  req.session.UserId = user._id;
+                  return res.status(201)
+                  .location('/')
+                  .end();	
+                }
+              });
+            }
+          });  
+        } else {
+          let err = new Error("email address already used");
+          err.status = 409;
+          next(err);
+        }
       }
-    });
+    })
   } else {
     let err = new Error('All fields required.');
     err.status = 400;
     return next(err);
   }
-});
-
-router.get('/login', mid.loggedOut, (req, res) => {
-  res.render('login');
-});
-
-router.post('/login', (req, res, next) => {
-  if(req.body.email && req.body.password) {
-    User.authenticate(req.body.email, req.body.password, (error, user) => {
-      if( error || !user) {
-        let err = new Error('Wrong email or password');
-        err.status = 401;
-        return next(err);
-      } else {
-        req.session.UserId = user._id;
-        return res.redirect('/api/users')
-      }
-    });
-  } else {
-    let err = new Error('Email and password are required');
-    err.status = 401;
-    return next(err);
-  }
-});
-
-router.get('/logout', (req, res, next) => {
-  if(req.session) {
-    req.session.destroy( (err) => {
-      if(err) {
-        next(err);
-      } else {
-        res.redirect('/');
-      }
-    });
-  }
-  
 });
 
 module.exports = router;

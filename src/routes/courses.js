@@ -8,155 +8,118 @@ let mid = require('../middleware');
 
 
 // GET all courses
-router.get('/courses', mid.requiresLogin, (req, res, next) => {
-    Course.find()
+router.get('/courses', (req, res, next) => {
+    Course.find({}, '_id title')
     .exec((err, courses) => {
         if(err) {
             next(err);
         } else {
-            res.render('courses', {courses: courses});
+            res.json(courses);
         }
     }); 
 });
 
 // GET specific course by Id
 router.get('/course/:id', mid.requiresLogin, (req, res, next) => {
-    let id = req.params.id;
-    Course.findById(id)
-    .exec((err, course) => {
-        if(err) {
-            next(err);
-        } else {
-            let reviews = course.reviews;
-            User.findById(course.user)
-            .exec((err, user) => {
-                if(err) {
-                    next(err);
-                } else {
-                    Review.find({
-                        '_id': { $in: reviews }
-                    })
-                    .exec((err, review) => {
-                        if(err) {
-                            next(err);
-                        } else {
-                            res.render('course-details', {course: course, user: user, reviews: review, counter: course.steps.length});
-                        }
-                    });
-                    
-                }
-            });
-            
-        }
-    });
-});
-
-// GET new course form 
-router.get('/new_course', (req, res, next) => {
-    res.render('new_course');
+    Course.findById(req.params.id)
+		.populate('reviews')
+		.populate('users' , '_id fullName')
+		.exec( (err, course) => {
+            if (err) return next(err);
+            else {
+                res.json(course);
+            }  
+		});
 });
 
 // POST / Create a new Course
-router.post('/course', (req, res, next) => {
+router.post('/courses', mid.requiresLogin, function(req, res, next) {
     if(
-        req.body.title &&
-        req.body.description &&
-        req.body.estimatedTime &&
-        req.body.materialsNeeded
-    ) { 
-        let steps = [];
-        for(let i=1; i <= req.body.stepTitle.length; i++){
-            steps.push({
-                stepNumber: i,
-                title: req.body.stepTitle[i-1] ,
-                description: req.body.stepDescription[i-1]
-            });
-        }
-        let CourseData = {
-            user: req.session.UserId ,
-            title: req.body.title,
-            description: req.body.description,
-            estimatedTime: req.body.estimatedTime,
-            materialsNeeded: req.body.materialsNeeded,
-            steps: steps
-        }
-        Course.create(CourseData, (err, course) => {
-            if(err) {
+        req.body.title && 
+        req.body.description && 
+        req.body.steps
+      ){
+        Course.create(req.body, (err) => {
+            if (err) {
                 next(err);
             } else {
-                res.redirect('/api/courses');
+                return res.status(201).location('/').end();
             }
-        })
-    } else {
-        let err = new Error("All fields are required");
+        });
+      }else {
+        let err = new Error('All fields required.');
         err.status = 400;
-        next(err);
-    }
-});
-
-router.post('/course/:id', (req, res, next) => {
-    let steps = [];
-        for(let i=1; i <= req.body.stepTitle.length; i++){
-            steps.push({
-                stepNumber: i,
-                title: req.body.stepTitle[i-1] ,
-                description: req.body.stepDescription[i-1]
-            });
-    }
-    Course.findByIdAndUpdate(req.params.id,
-         {$set:{
-            title: req.body.title,
-            description: req.body.description, 
-            estimatedTime: req.body.estimatedTime,
-            materialsNeeded: req.body.materialsNeeded,
-            steps: steps
-            }}, (err, course) => {
-        if(err){
-            next(err);
-        } else {
-            res.redirect('/api/course/'+ req.params.id);
-        }
-    })
+        return next(err);
+      }
+	
 });
 
 // POST /Create a review
-router.post('/review/:id', (req, res, next) => {
-    if( 
-        req.body.review &&
+router.post('/courses/:id/reviews', (req, res, next) => {
+    if( req.body.review && 
         req.body.rating
     ) {
-        User.findById(req.session.UserId)
-        .exec((err, user) => {
-            if(err) {
-                next(err);
-            } else {
-                let reviewData = {
-                    reviewer: user.fullName,
-                    rating: req.body.rating,
-                    review: req.body.review
-                }
-                Review.create(reviewData, (err, review) => {
-                    if(err) {
+        Course.findById(req.params.id)
+            .populate('user')
+		    .populate('reviews')
+            .exec((err, course) => {
+                if(err) {
+                    next(err);
+                } else {
+                    if(course.user === req.session.UserId ) {
+                        let err = new Error("You can't review your own course");
+                        err.status = 409;
                         next(err);
                     } else {
-                        Course.findByIdAndUpdate(req.params.id, {$push: {reviews: review}}, (err, course) => {
-                            if(err) {
-                                next(err);
-                            } else {
-                                course.reviews.push(review.id);
-                            }
-                            });
-                            res.redirect('/api/course/' + req.params.id);
+                        if(req.session.UserId) {
+                            let review = new Review(req.body);
+                            review.user = req.session.UserId;
+                            course.reviews.push(review);
+                            course.save((err) => {
+                                if(err) {
+                                    next(err);
+                                }
+                            review.save((err) => {
+                                if(err) { 
+                                    next(err);
+                                } 
+                            })
+                            })
+                            res.json(course);
+                            res.status(201);
+          				    res.location('/courses/' + req.params.id);
+          				    res.end();
+                        } else {
+                            let err = new Error("You must be logged in to review a course");
+                            err.status = 401;
+                            next(err);
+                        }
                     }
-                })
-            }
-        })            
+                }
+        });
     } else {
-        let err = new Error('All fields are required');
+        let err = new Error('All fields required.');
         err.status = 400;
-        next(err);
+        return next(err);s
     }
 });
 
+// PUT Edit a course
+router.put('/courses/:id', (req, res, next) => {
+    if (req.body.user._id == req.session.UserId) {
+        Course.findByIdAndUpdate(req.params.id, {$set: req.body}, (err, course) => {
+            if(err) {
+                next(err);
+            } else {
+                res.json(course);
+            }
+        })
+    } else {
+        let err = new Error("You can't edit someone else's courses");
+        err.status = 401;
+        next(err);
+    }
+    
+});
 
 module.exports = router;

@@ -33,7 +33,7 @@ let CourseSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Review'
   }]
-});
+}, { usePushEach: true });
 
 let Course = mongoose.model('Course', CourseSchema);
 module.exports = Course;

@@ -4,9 +4,6 @@ let mongoose = require('mongoose');
 
 // define review schema
 let ReviewSchema = new mongoose.Schema({
-  reviewer: {
-    type: String
-  },
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'

@@ -15,9 +15,6 @@ require('./database');
 
 let app = express();
 
-// serve static files from /public
-app.use(express.static(__dirname + '/public'));
-
 app.use(session({
   secret: "Nikica loves you",
   resave: true,
@@ -30,31 +27,30 @@ app.use((req, res, next) => {
   next();
 })
 
-
-// view engine setup
-app.set('view engine', 'pug');
-app.set('views', __dirname + '/views');
-
 app.use(bodyParser.urlencoded());
 app.use(bodyParser.json());
 
-let routes = require('./routes');
+let courses = require('./routes/courses');
+let users = require('./routes/users');
 
 app.set('port', process.env.PORT || 5000);
 
 app.use(logger('dev'));
 
+app.use(bodyParser.urlencoded({ extended : false}));
+app.use(bodyParser.json());
+
+app.use('/', express.static('public'));
+
 app.use(jsonParser());
-app.use('/', routes.home);
-app.use('/api', routes.course);
-app.use('/api', routes.review);
-app.use('/api', routes.user);
+app.use('/api', courses);
+app.use('/api', users);
 
 
 // Adds a global error handler middleware function that writes error information to the response in the JSON format.
 app.use(function (err, req, res, next) {
   res.status(err.status || 500);
-  res.render('error',{
+  res.json({
     error: {
       message: err.message
     }
