@@ -20,10 +20,8 @@ router.get('/courses', (req, res, next) => {
 });
 
 // GET specific course by Id
-router.get('/course/:id', mid.requiresLogin, (req, res, next) => {
+router.get('/courses/:id', (req, res, next) => {
     Course.findById(req.params.id)
-		.populate('reviews')
-		.populate('users' , '_id fullName')
 		.exec( (err, course) => {
             if (err) return next(err);
             else {
@@ -79,16 +77,13 @@ router.post('/courses/:id/reviews', (req, res, next) => {
                                 if(err) {
                                     next(err);
                                 }
+                            });
                             review.save((err) => {
                                 if(err) { 
                                     next(err);
                                 } 
-                            })
-                            })
-                            res.json(course);
-                            res.status(201);
-          				    res.location('/courses/' + req.params.id);
-          				    res.end();
+                            });
+                            res.status(201).location('/courses/' + req.params.id).end();
                         } else {
                             let err = new Error("You must be logged in to review a course");
                             err.status = 401;
@@ -106,7 +101,7 @@ router.post('/courses/:id/reviews', (req, res, next) => {
 
 // PUT Edit a course
 router.put('/courses/:id', (req, res, next) => {
-    if (req.body.user._id == req.session.UserId) {
+    if (req.body.user._id === req.session.UserId) {
         Course.findByIdAndUpdate(req.params.id, {$set: req.body}, (err, course) => {
             if(err) {
                 next(err);
