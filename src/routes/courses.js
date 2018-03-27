@@ -54,8 +54,7 @@ router.post('/courses', mid.requiresLogin, function(req, res, next) {
 
 // POST /Create a review
 router.post('/courses/:id/reviews', (req, res, next) => {
-    if( req.body.review && 
-        req.body.rating
+    if( req.body.rating
     ) {
         Course.findById(req.params.id)
             .populate('user')
@@ -93,7 +92,7 @@ router.post('/courses/:id/reviews', (req, res, next) => {
                 }
         });
     } else {
-        let err = new Error('All fields required.');
+        let err = new Error('Rating is required.');
         err.status = 400;
         return next(err);s
     }
@@ -106,7 +105,7 @@ router.put('/courses/:id', (req, res, next) => {
             if(err) {
                 next(err);
             } else {
-                res.json(course);
+                res.status(204);
             }
         })
     } else {
